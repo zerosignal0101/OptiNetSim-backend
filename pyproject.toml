@@ -3,7 +3,7 @@ name = "optical-network-topology-api"
 version = "0.1.0"
 description = "A FastAPI service for managing optical network topologies with MongoDB."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<=3.12"
 dependencies = [
     "fastapi>=0.116.1",
     "motor>=3.7.1",
@@ -12,4 +12,15 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "uuid6>=2025.0.1",
     "uvicorn[standard]>=0.35.0",
+    "band-defrag @ git+https://github.com/zerosignal0101/band-defrag.git",
+    "gnpy (>=2.13.0,<3.0.0)",
 ]
+
+[tool.poetry]
+package-mode=false
+
+[[tool.poetry.source]]
+name = "bfsu"
+url = "https://mirrors.bfsu.edu.cn/pypi/web/simple"
+priority = "primary"
+
