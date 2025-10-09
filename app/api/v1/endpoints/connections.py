@@ -45,6 +45,17 @@ async def create_connection(
                     "message": f"One or more nodes do not exist in the network: {', '.join(missing_nodes)}."}
         )
 
+    existing_connection = any(
+        conn.from_node == connection_in.from_node and conn.to_node == connection_in.to_node
+        for conn in network.connections
+    )
+    if existing_connection:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "CONNECTION_ALREADY_EXISTS",
+                    "message": f"A connection between '{connection_in.from_node}' and '{connection_in.to_node}' already exists."}
+        )
+
     db_connection = await crud_network.add_connection_to_network(db, network_id, connection_in)
     if db_connection is None:
         # This case should ideally not happen if network_id is valid and nodes exist
