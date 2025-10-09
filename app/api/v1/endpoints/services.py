@@ -2,10 +2,12 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
+import networkx as nx
 
 from ....core.database import get_database
 from ....crud import crud_network
 from ....models.network import ServiceCreate, ServiceInDB, ServiceUpdate
+from ....utils.minimize import minimize_network
 
 router = APIRouter()
 
@@ -45,6 +47,17 @@ async def create_service(
     """
     Creates a new service (e.g., optical path, channel) within the specified optical network.
     """
+    # 获取原始网络数据
+    db_network = await crud_network.get_network(db, network_id)
+    if db_network is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NETWORK_NOT_FOUND", "message": f"Network with id {network_id} not found"}
+        )
+
+    network_raw, _, __, ___ = minimize_network(db_network)
+    service_in.path = nx.shortest_path(network_raw, service_in.source_id, service_in.destination_id, 'weight')
+
     # Optional: Add validation for service_in.path elements to ensure they exist as nodes/connections
     db_service = await crud_network.add_service_to_network(db, network_id, service_in)
     if db_service is None:

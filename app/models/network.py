@@ -131,16 +131,16 @@ class ConnectionInDB(ConnectionBase):
 # --- Service Models ---
 
 class ServiceRequirements(BaseModel):
-    bandwidth: float
-    latency: float
+    bandwidth: int = 10000000000
+    latency: float = 10.0
 
 
 class ServiceBase(BaseModel):
     name: str
-    # path can contain element_ids of nodes and connections, depending on implementation detail.
-    # For simplicity, let's assume it's a list of node element_ids forming a logical path.
-    path: List[str]
-    service_requirements: Optional[ServiceRequirements] = None
+    source_id: str
+    destination_id: str
+    path: Optional[List[str]] = None
+    service_requirements: ServiceRequirements = Field(default_factory=ServiceRequirements)
     service_constraints: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -158,6 +158,8 @@ class ServiceInDB(ServiceBase):
 class ServiceUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[str] = None
+    source_id: Optional[str] = None
+    destination_id: Optional[str] = None
     path: Optional[List[str]] = None
     service_requirements: Optional[ServiceRequirements] = None
     service_constraints: Optional[Dict[str, Any]] = None

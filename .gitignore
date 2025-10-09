@@ -16,3 +16,6 @@ wheels/
 # Env
 .env
 .python-version
+
+# Notebooks
+*.ipynb

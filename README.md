@@ -32,7 +32,7 @@ OptiNetSim-backend/
 ### Prerequisites
 
 -   Python 3.9+
--   `uv` (Python package installer)
+-   `poetry` (Python package installer)
 -   A running MongoDB instance
 
 ### Steps
@@ -45,9 +45,7 @@ OptiNetSim-backend/
 
 2.  **Install dependencies using `uv`:**
     ```bash
-    uv pip install -r pyproject.toml
-    # Or more simply with uv >= 0.1.18
-    uv sync
+    poetry install
     ```
 
 3.  **Configure Environment Variables:**

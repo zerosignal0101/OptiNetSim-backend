@@ -152,7 +152,15 @@ async def delete_element_from_network(db: AsyncIOMotorDatabase, network_id: str,
     result = await db[COLLECTION].update_one(
         {"_id": ObjectId(network_id)},
         {
-            "$pull": {"elements": {"element_id": element_id}},
+            "$pull": {
+                "elements": {"element_id": element_id},
+                "connections": {
+                    "$or": [
+                        {"from_node": element_id},
+                        {"to_node": element_id}
+                    ]
+                }
+            },
             "$set": {"updated_at": datetime.utcnow()}
         }
     )
@@ -254,6 +262,7 @@ async def update_service_in_network(db: AsyncIOMotorDatabase, network_id: str, s
 
     set_fields = {f"services.$.{key}": value for key, value in update_data.items()}
     set_fields["updated_at"] = datetime.utcnow()
+    set_fields["services.$.updated_at"] = datetime.utcnow()
 
     result = await db[COLLECTION].update_one(
         {"_id": ObjectId(network_id), "services.service_id": service_id},
