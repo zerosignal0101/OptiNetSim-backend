@@ -8,6 +8,8 @@ from ....core.database import get_database
 from ....crud import crud_network
 from ....models.network import ServiceCreate, ServiceInDB, ServiceUpdate
 from ....utils.minimize import minimize_network
+from ....models.simulation import SingleLinkSimulationResponse, SimulationTransceiverResult
+from ....services.simulation import single_link_simulate
 
 router = APIRouter()
 
@@ -158,3 +160,48 @@ async def delete_service(
                         "message": f"Service with id {service_id} not found in network {network_id}."}
             )
     return None
+
+@router.get(
+    "/{service_id}/single-link",
+    summary="Single Link Simulation"
+)
+async def single_link(
+        network_id: str,
+        service_id: str,
+        db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Single link Simulation
+    """
+    db_network = await crud_network.get_network(db, network_id)
+    if db_network is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NETWORK_NOT_FOUND",
+                    "message": f"Network with id {network_id} not found."}
+        )
+
+    service = await crud_network.get_service_from_network(db, network_id, service_id)
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "SERVICE_NOT_FOUND",
+                    "message": f"Service with id {service_id} not found in network {network_id}."}
+        )
+
+    path, propagations_for_path, powers_dbm, infos = single_link_simulate(db_network, service)
+
+    response = SingleLinkSimulationResponse(path_results=[])
+    from gnpy.core.utils import per_label_average
+    from gnpy.core.elements import Transceiver, Fiber, RamanFiber, Roadm, Edfa
+    for element in path:
+        if type(element) is Transceiver:
+            response.path_results.append(SimulationTransceiverResult(
+                element_id=element.uid,
+                snr_01nm=list(per_label_average(element.snr_01nm, element.propagated_labels).values())[0],
+                snr=list(per_label_average(element.snr, element.propagated_labels).values())[0],
+                osnr_ase_01nm=list(per_label_average(element.osnr_ase_01nm, element.propagated_labels).values())[0],
+                osnr_ase=list(per_label_average(element.osnr_ase, element.propagated_labels).values())[0],
+            ))
+
+    return response

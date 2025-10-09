@@ -11,10 +11,10 @@ import gnpy.core.exceptions as exceptions
 from gnpy.core.utils import lin2db, pretty_summary_print, per_label_average, watt2dbm
 from gnpy.tools.worker_utils import designed_network, transmission_simulation, planning
 
-from app.models.network import NetworkInDB
+from app.models.network import NetworkInDB, ServiceInDB
 
 
-def single_link_simulate(db_network: NetworkInDB, source_id: str, destination_id: str):
+def single_link_simulate(db_network: NetworkInDB, service: ServiceInDB):
     equipment = load_equipment(Path(__file__).parent.parent / 'utils' / 'eqpt_config_openroadm_ver5.json')
 
     network_dict = db_network.model_dump()
@@ -41,10 +41,10 @@ def single_link_simulate(db_network: NetworkInDB, source_id: str, destination_id
     if len(transceivers) < 2:
         return '至少需要两个收发器才能进行网络仿真'
 
-    source = transceivers.pop(source_id, None)
-    destination = transceivers.pop(destination_id, None)
+    source = transceivers.pop(service.source_id, None)
+    destination = transceivers.pop(service.destination_id, None)
 
-    nodes_list = []
+    nodes_list = service.path
     loose_list = []
 
     if not source:

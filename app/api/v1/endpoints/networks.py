@@ -9,8 +9,6 @@ from ....models.network import (
     NetworkCreate, NetworkResponse, NetworkListResponse,
     NetworkDetailResponse, NetworkUpdate
 )
-from ....models.simulation import SingleLinkSimulationResponse, SingleLinkSimulationRequest, SimulationTransceiverResult
-from ....services.simulation import single_link_simulate
 from ....utils.minimize import minimize_network
 
 router = APIRouter()
@@ -179,41 +177,3 @@ async def delete_network(
             detail={"code": "NETWORK_NOT_FOUND", "message": f"Network with id {network_id} not found"}
         )
     return None
-
-
-@router.post(
-    "/{network_id}/single-link",
-    summary="Single Link Simulation"
-)
-async def single_link(
-        network_id: str,
-        payload: SingleLinkSimulationRequest,
-        db: AsyncIOMotorDatabase = Depends(get_database)
-):
-    """
-    Single link Simulation
-    """
-    db_network = await crud_network.get_network(db, network_id)
-    if db_network is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "NETWORK_NOT_FOUND",
-                    "message": f"Network with id {network_id} not found."}
-        )
-
-    path, propagations_for_path, powers_dbm, infos = single_link_simulate(db_network, payload.source_id, payload.destination_id)
-
-    response = SingleLinkSimulationResponse(path_results=[])
-    from gnpy.core.utils import per_label_average
-    from gnpy.core.elements import Transceiver, Fiber, RamanFiber, Roadm, Edfa
-    for element in path:
-        if type(element) is Transceiver:
-            response.path_results.append(SimulationTransceiverResult(
-                element_id=element.uid,
-                snr_01nm=list(per_label_average(element.snr_01nm, element.propagated_labels).values())[0],
-                snr=list(per_label_average(element.snr, element.propagated_labels).values())[0],
-                osnr_ase_01nm=list(per_label_average(element.osnr_ase_01nm, element.propagated_labels).values())[0],
-                osnr_ase=list(per_label_average(element.osnr_ase, element.propagated_labels).values())[0],
-            ))
-
-    return response
