@@ -1,5 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from .config import settings
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 
 
 class Database:
@@ -15,7 +16,12 @@ async def connect_to_mongo():
     print("Connecting to MongoDB...")
     db_manager.client = AsyncIOMotorClient(settings.MONGO_URI)
     db_manager.db = db_manager.client[settings.MONGO_DB_NAME]
-    print("Successfully connected to MongoDB.")
+    try:
+        # 执行 ping 命令测试连接
+        await db_manager.client.admin.command('ping')
+        print("Successfully connected to MongoDB.")
+    except (ConnectionFailure, ServerSelectionTimeoutError) as e:
+        print(f"Fail to connect to MongoDB: {e}")
 
 
 async def close_mongo_connection():

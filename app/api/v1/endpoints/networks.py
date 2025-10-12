@@ -5,11 +5,13 @@ import gnpy
 
 from ....core.database import get_database
 from ....crud import crud_network
+from ....models.defrag import DefragRequest, DefragResponse, DefragService
 from ....models.network import (
     NetworkCreate, NetworkResponse, NetworkListResponse,
     NetworkDetailResponse, NetworkUpdate
 )
 from ....utils.minimize import minimize_network
+from ....services.defrag import network_defrag
 
 router = APIRouter()
 
@@ -177,3 +179,47 @@ async def delete_network(
             detail={"code": "NETWORK_NOT_FOUND", "message": f"Network with id {network_id} not found"}
         )
     return None
+
+
+@router.post(
+    "/{network_id}/defrag",
+    status_code=status.HTTP_200_OK,
+    response_model=DefragResponse,
+    summary="Defrag an Optical Network"
+)
+async def defrag_network(
+        network_id: str,
+        payload: DefragRequest,
+        db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Deletes a network and all its associated topology, services, and configurations.
+    """
+    # 获取原始网络数据
+    db_network = await crud_network.get_network(db, network_id)
+    if db_network is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NETWORK_NOT_FOUND", "message": f"Network with id {network_id} not found"}
+        )
+
+    network_raw, _minimized_elements, _minimized_connections, _network_dict = minimize_network(db_network)
+
+    result, services_dict = network_defrag(network_raw, 400, 500)
+
+    services_list: List[DefragService] = []
+    for service_obj in services_dict.values():
+        # 1. 将 Service 对象转换为普通字典
+        service_data_dict = service_obj.to_dict()
+
+        # 2. 使用 DefragService 模型解析字典，创建一个 Pydantic 模型实例
+        #    model_validate 是一个强大的方法，它会检查传入的字典是否符合模型定义
+        #    并进行类型转换（如果可能）
+        service_response_model = DefragService.model_validate(service_data_dict)
+
+        # 3. 将创建好的 Pydantic 模型添加到响应列表中
+        services_list.append(service_response_model)
+
+    response = DefragResponse(services=services_list, result=result)
+
+    return response
