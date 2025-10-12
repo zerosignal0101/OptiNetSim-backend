@@ -57,8 +57,15 @@ async def create_service(
             detail={"code": "NETWORK_NOT_FOUND", "message": f"Network with id {network_id} not found"}
         )
 
-    network_raw, _, __, ___ = minimize_network(db_network)
+    network_raw, minimized_elements, __, ___ = minimize_network(db_network)
+    element_dict = {el['element_id']: el for el in minimized_elements}
     service_in.path = nx.shortest_path(network_raw, service_in.source_id, service_in.destination_id, 'weight')
+    service_in.source_id = element_dict[service_in.source_id]['metadata']['transceiver']['element_id']
+    service_in.destination_id = element_dict[service_in.destination_id]['metadata']['transceiver']['element_id']
+
+    print(service_in.path)
+    print(service_in.source_id)
+    print(service_in.destination_id)
 
     # Optional: Add validation for service_in.path elements to ensure they exist as nodes/connections
     db_service = await crud_network.add_service_to_network(db, network_id, service_in)

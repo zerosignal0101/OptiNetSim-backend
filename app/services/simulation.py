@@ -45,7 +45,8 @@ def single_link_simulate(db_network: NetworkInDB, service: ServiceInDB):
     destination = transceivers.pop(service.destination_id, None)
 
     nodes_list = service.path
-    loose_list = []
+    nodes_list.append(service.destination_id)
+    loose_list = ['STRICT']
 
     if not source:
         source = list(transceivers.values())[0]
@@ -59,38 +60,10 @@ def single_link_simulate(db_network: NetworkInDB, service: ServiceInDB):
         print('No destination node specified: picking random transceiver')
 
     initial_spectrum = None
-    try:
-        # print(nodes_list, loose_list)
-        network, req, ref_req = designed_network(equipment, network, source.uid, destination.uid,
-                                                 nodes_list=nodes_list, loose_list=loose_list,
-                                                 initial_spectrum=initial_spectrum)
-        path, propagations_for_path, powers_dbm, infos = transmission_simulation(equipment, network, req, ref_req)
-    except exceptions.NetworkTopologyError as e:
-        print(f'{ansi_escapes.red}Invalid network definition:{ansi_escapes.reset} {e}')
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"code": "NETWORK_TOPOLOGY_ERROR",
-                    "message": f"Network with id {network_dict['network_id']} has wrong topology."}
-        )
-    except exceptions.ConfigurationError as e:
-        print(f'{ansi_escapes.red}Configuration error:{ansi_escapes.reset} {e}')
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"code": "NETWORK_CONFIG_ERROR",
-                    "message": f"Network with id {network_dict['network_id']} has wrong configuration."}
-        )
-    except exceptions.ServiceError as e:
-        print(f'Service error: {e}')
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"code": "SERVICE_ERROR",
-                    "message": f"Network with id {network_dict['network_id']} has wrong service."}
-        )
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"code": "NETWORK_VALUE_ERROR",
-                    "message": f"Network with id {network_dict['network_id']} has value error."}
-        )
+    # print(nodes_list, loose_list)
+    network, req, ref_req = designed_network(equipment, network, source.uid, destination.uid,
+                                             nodes_list=nodes_list, loose_list=loose_list,
+                                             initial_spectrum=initial_spectrum)
+    path, propagations_for_path, powers_dbm, infos = transmission_simulation(equipment, network, req, ref_req)
 
     return path, propagations_for_path, powers_dbm, infos

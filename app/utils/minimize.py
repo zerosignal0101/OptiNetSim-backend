@@ -40,8 +40,8 @@ def minimize_network(db_network: NetworkInDB):
                 next_node_type = next_node_data['type']
                 if next_node_type == 'Roadm':
                     next_node_data['metadata']['transceiver'] = {}
-                    next_node_data['metadata']['transceiver']['element_id'] = next_node
-                    next_node_data['metadata']['transceiver']['name'] = next_node_data['name']
+                    next_node_data['metadata']['transceiver']['element_id'] = element_id
+                    next_node_data['metadata']['transceiver']['name'] = element_data['name']
             nodes_to_remove.add(element_id)
     # 2. 处理 Roadm 节点
     for element_id in list(element_dict.keys()):
