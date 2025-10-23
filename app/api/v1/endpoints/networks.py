@@ -205,7 +205,7 @@ async def defrag_network(
 
     network_raw, _minimized_elements, _minimized_connections, _network_dict = minimize_network(db_network)
 
-    result, services_dict = network_defrag(network_raw, payload.erlang, payload.service_num)
+    result, services_dict, defragmentation_events = network_defrag(network_raw, payload.erlang, payload.service_num)
 
     services_list: List[DefragService] = []
     for service_obj in services_dict.values():
@@ -220,6 +220,6 @@ async def defrag_network(
         # 3. 将创建好的 Pydantic 模型添加到响应列表中
         services_list.append(service_response_model)
 
-    response = DefragResponse(services=services_list, result=result)
+    response = DefragResponse(services=services_list, result=result, defragmentation_events=defragmentation_events)
 
     return response

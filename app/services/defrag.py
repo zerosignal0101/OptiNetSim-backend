@@ -25,11 +25,13 @@ def network_defrag(network_minimized: nx.DiGraph, erlang: float, service_num: in
     all_args = load_config_from_yaml(config_path)
 
     dummy_env = MultibandOpticalNetworkEnv(None, None, {}, max_agent, None)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print("Using device: ", device)
     policy = TransformerPolicy(all_args, dummy_env.observation_space[0], dummy_env.action_space[0],
-                               device=torch.device("cpu"))
+                               device=torch.device(device))
     policy.restore(pathlib.Path(__file__).parent.parent / all_args.model_dir)
 
     services = new_service_dict(topology, erlang, service_num)
-    result, service_dict = blocking_test(topology, services, max_agent, policy)
+    result, service_dict, defragmentation_events = blocking_test(topology, services, max_agent, policy)
 
-    return result, service_dict
+    return result, service_dict, defragmentation_events
