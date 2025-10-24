@@ -3,8 +3,9 @@ from typing import Optional, List, Dict
 
 
 class DefragRequest(BaseModel):
-    erlang: float
-    service_num: int
+    avg_arrival_interval: float
+    avg_holding_time: float
+    service_arrival_time_max: int
 
 
 class DefragService(BaseModel):
@@ -12,7 +13,7 @@ class DefragService(BaseModel):
     source_id: str
     destination_id: str = None
     arrival_time: float = None
-    holding_time: float = None
+    departure_time: float = None
     bit_rate: float = None
     modulation: Optional[str] = None
     power: float = None
@@ -58,7 +59,7 @@ class DefragmentationEvent(BaseModel):
     """
     trigger_service_id: int = Field(..., description="触发此次重排的新业务ID")
     arrival_time: float = Field(..., description="触发重排时的新业务到达时间")
-    holding_time: float = Field(..., description="触发重排时的新业务持有时间")
+    departure_time: float = Field(..., description="触发重排时的新业务持有时间")
     reallocations: List[ServiceReallocationDetails] = Field(
         ...,
         description="在此次重排尝试中，被重新分配或尝试重新分配的服务列表及其路径和波长变化"

@@ -205,7 +205,7 @@ async def defrag_network(
 
     network_raw, _minimized_elements, _minimized_connections, _network_dict = minimize_network(db_network)
 
-    result, services_dict, defragmentation_events = network_defrag(network_raw, payload.erlang, payload.service_num)
+    result, services_dict, defragmentation_events = network_defrag(network_raw, payload.avg_arrival_interval, payload.avg_holding_time, payload.service_arrival_time_max)
 
     services_list: List[DefragService] = []
     for service_obj in services_dict.values():

@@ -17,7 +17,7 @@ from band_defrag.utils.network_utils import process_topology
 max_agent = 30
 
 
-def network_defrag(network_minimized: nx.DiGraph, erlang: float, service_num: int):
+def network_defrag(network_minimized: nx.DiGraph, avg_arrival_interval: float, avg_holding_time: float, service_arrival_time_max: float):
 
     topology, __ = process_topology(network_minimized)
 
@@ -31,7 +31,7 @@ def network_defrag(network_minimized: nx.DiGraph, erlang: float, service_num: in
                                device=torch.device(device))
     policy.restore(pathlib.Path(__file__).parent.parent / all_args.model_dir)
 
-    services = new_service_dict(topology, erlang, service_num)
+    services = new_service_dict(topology, avg_arrival_interval, avg_holding_time, service_arrival_time_max)
     result, service_dict, defragmentation_events = blocking_test(topology, services, max_agent, policy)
 
     return result, service_dict, defragmentation_events
