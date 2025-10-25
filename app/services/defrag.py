@@ -32,6 +32,6 @@ def network_defrag(network_minimized: nx.DiGraph, avg_arrival_interval: float, a
     policy.restore(pathlib.Path(__file__).parent.parent / all_args.model_dir)
 
     services = new_service_dict(topology, avg_arrival_interval, avg_holding_time, service_arrival_time_max)
-    result, service_dict, defragmentation_events = blocking_test(topology, services, max_agent, policy)
+    result, defrag_timeline_events = blocking_test(topology, services, max_agent, policy)
 
-    return result, service_dict, defragmentation_events
+    return result, defrag_timeline_events

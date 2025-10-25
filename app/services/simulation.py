@@ -1,7 +1,8 @@
 from pathlib import Path
-from typing import Union, Dict, List
+from typing import Union, Dict, List, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 import numpy as np
+import asyncio
 
 from gnpy.tools.json_io import network_from_json, load_equipment
 from gnpy.core.elements import Transceiver, Fiber, RamanFiber, Roadm, Edfa
@@ -181,3 +182,41 @@ def simulate_service_path_wavelength(
     path, propagations_for_path, powers_dbm, infos = transmission_simulation(equipment, network, req, ref_req)
 
     return path, propagations_for_path, powers_dbm, infos
+
+
+async def run_simulation_in_executor(
+        db_network: NetworkInDB,
+        simulation_source_id: str,
+        simulation_destination_id: str,
+        service_data_dict: Dict[str, Any]
+) -> float | None:
+    """
+    一个异步的包装函数，它在线程池中运行同步的、阻塞的仿真函数。
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        # loop.run_in_executor 会在默认的线程池执行器中运行同步函数，
+        # 并返回一个可以 await 的 future 对象。
+        path, _propagations, _powers, _infos = await loop.run_in_executor(
+            None,  # 使用默认的 ThreadPoolExecutor
+            simulate_service_path_wavelength,
+            db_network,
+            simulation_source_id,
+            simulation_destination_id,
+            service_data_dict['path'],
+            service_data_dict['wavelength'],
+            service_data_dict['power']
+        )
+
+        # 注意：这里的 gnpy 相关代码也是同步的，所以放在这里是安全的
+        last_transceiver = path[-1]
+        if isinstance(last_transceiver, Transceiver):
+            # 假设 per_label_average 返回一个字典
+            avg_snr = per_label_average(last_transceiver.snr, last_transceiver.propagated_labels)
+            return list(avg_snr.values())[0] if avg_snr else None
+
+        return None
+
+    except Exception as e:
+        print(f"[ERROR] Simulation failed for service {service_data_dict.get('id', 'N/A')}: {e}")
+        return None

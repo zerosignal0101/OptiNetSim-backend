@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import gnpy
 
+from band_defrag.utils.blocking_utils import EVENT_ALLOCATION, EVENT_REALLOCATION, EVENT_RELEASE_EXPIRED
+
 from ....core.database import get_database
 from ....crud import crud_network
 from ....models.defrag import DefragRequest, DefragResponse, DefragService
@@ -10,6 +12,7 @@ from ....models.network import (
     NetworkCreate, NetworkResponse, NetworkListResponse,
     NetworkDetailResponse, NetworkUpdate
 )
+from ....services.simulation import simulate_service_path_wavelength
 from ....utils.minimize import minimize_network
 from ....services.defrag import network_defrag
 
@@ -203,23 +206,57 @@ async def defrag_network(
             detail={"code": "NETWORK_NOT_FOUND", "message": f"Network with id {network_id} not found"}
         )
 
-    network_raw, _minimized_elements, _minimized_connections, _network_dict = minimize_network(db_network)
+    network_raw, minimized_elements, _minimized_connections, _network_dict = minimize_network(db_network)
 
-    result, services_dict, defragmentation_events = network_defrag(network_raw, payload.avg_arrival_interval, payload.avg_holding_time, payload.service_arrival_time_max)
+    result, defrag_timeline_events = network_defrag(network_raw, payload.avg_arrival_interval, payload.avg_holding_time,
+                                                    payload.service_arrival_time_max)
 
-    services_list: List[DefragService] = []
-    for service_obj in services_dict.values():
-        # 1. 将 Service 对象转换为普通字典
-        service_data_dict = service_obj.to_dict()
+    for timeline_event in defrag_timeline_events:
+        if timeline_event['event_type'] == EVENT_ALLOCATION or timeline_event['event_type'] == EVENT_REALLOCATION:
+            service_data_dict = timeline_event['details']
 
-        # 2. 使用 DefragService 模型解析字典，创建一个 Pydantic 模型实例
-        #    model_validate 是一个强大的方法，它会检查传入的字典是否符合模型定义
-        #    并进行类型转换（如果可能）
-        service_response_model = DefragService.model_validate(service_data_dict)
+            simulation_source_id = None
+            for element in minimized_elements:
+                if element['element_id'] == service_data_dict['source_id']:
+                    simulation_source_id = element['metadata']['transceiver']['element_id']
+                    break
 
-        # 3. 将创建好的 Pydantic 模型添加到响应列表中
-        services_list.append(service_response_model)
+            simulation_destination_id = None
+            for element in minimized_elements:
+                if element['element_id'] == service_data_dict['destination_id']:
+                    simulation_destination_id = element['metadata']['transceiver']['element_id']
+                    break
 
-    response = DefragResponse(services=services_list, result=result, defragmentation_events=defragmentation_events)
+            print('Simulate with: ', (simulation_source_id,
+                                      simulation_destination_id,
+                                      service_data_dict['path'],
+                                      service_data_dict['wavelength'],
+                                      service_data_dict['power']))
+
+            if simulation_source_id and simulation_destination_id:
+                path, propagations_for_path, powers_dbm, infos = simulate_service_path_wavelength(
+                    db_network,
+                    simulation_source_id,
+                    simulation_destination_id,
+                    service_data_dict['path'],
+                    service_data_dict['wavelength'],
+                    service_data_dict['power']
+                )
+
+                from gnpy.core.elements import Transceiver, Fiber, RamanFiber, Roadm, Edfa
+                from gnpy.core.utils import per_label_average
+                last_transceiver = path[-1]
+                if isinstance(last_transceiver, Transceiver):
+                    service_data_dict['gsnr'] = list(per_label_average(
+                        last_transceiver.snr,
+                        last_transceiver.propagated_labels
+                    ).values())[0]
+            else:
+                print('[WARN] Can not simulate with None element id.')
+
+            # 3. 将创建好的 Pydantic 模型添加到响应列表中
+            timeline_event['details'] = service_data_dict
+
+    response = DefragResponse(result=result, defrag_timeline_events=defrag_timeline_events)
 
     return response
