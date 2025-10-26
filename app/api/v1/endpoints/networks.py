@@ -2,6 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import gnpy
+from tqdm import tqdm
 
 from band_defrag.utils.blocking_utils import EVENT_ALLOCATION, EVENT_REALLOCATION, EVENT_RELEASE_EXPIRED
 
@@ -211,7 +212,12 @@ async def defrag_network(
     result, defrag_timeline_events = network_defrag(network_raw, payload.avg_arrival_interval, payload.avg_holding_time,
                                                     payload.service_arrival_time_max)
 
-    for timeline_event in defrag_timeline_events:
+    for timeline_event in tqdm(
+                defrag_timeline_events,
+                total=len(defrag_timeline_events),
+                desc='Event simulation with gnpy',
+                leave=True
+        ):
         if timeline_event['event_type'] == EVENT_ALLOCATION or timeline_event['event_type'] == EVENT_REALLOCATION:
             service_data_dict = timeline_event['details']
 
@@ -226,12 +232,6 @@ async def defrag_network(
                 if element['element_id'] == service_data_dict['destination_id']:
                     simulation_destination_id = element['metadata']['transceiver']['element_id']
                     break
-
-            print('Simulate with: ', (simulation_source_id,
-                                      simulation_destination_id,
-                                      service_data_dict['path'],
-                                      service_data_dict['wavelength'],
-                                      service_data_dict['power']))
 
             if simulation_source_id and simulation_destination_id:
                 path, propagations_for_path, powers_dbm, infos = simulate_service_path_wavelength(

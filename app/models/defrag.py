@@ -11,13 +11,13 @@ class DefragRequest(BaseModel):
 class DefragService(BaseModel):
     service_id: int
     source_id: str
-    destination_id: str = None
-    arrival_time: float = None
-    departure_time: float = None
-    bit_rate: float = None
-    power: float = None
-    path: List[str] = None  # 假设 path 是一个整数列表
-    wavelength: int = None
+    destination_id: str
+    arrival_time: float
+    departure_time: float
+    bit_rate: float
+    power: float
+    path: List[str]
+    wavelength: int
     snr_requirement: float
     gsnr: float
     utilization: float

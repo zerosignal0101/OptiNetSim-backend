@@ -46,7 +46,7 @@ def single_link_simulate(db_network: NetworkInDB, service: ServiceInDB):
     source = transceivers.pop(service.source_id, None)
     destination = transceivers.pop(service.destination_id, None)
 
-    nodes_list = service.path
+    nodes_list = service.path.copy()
     nodes_list.append(service.destination_id)
     loose_list = ['STRICT']
 
@@ -105,7 +105,7 @@ def simulate_service_path_wavelength(
     source = transceivers.pop(source_id, None)
     destination = transceivers.pop(destination_id, None)
 
-    nodes_list = path
+    nodes_list = path.copy()
     nodes_list.append(destination_id)
     loose_list = ['STRICT']
 
