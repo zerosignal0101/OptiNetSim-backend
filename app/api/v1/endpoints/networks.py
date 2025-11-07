@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import gnpy
 from tqdm import tqdm
+import numpy as np
 
 from band_defrag.utils.blocking_utils import EVENT_ALLOCATION, EVENT_REALLOCATION, EVENT_RELEASE_EXPIRED
 
@@ -210,7 +211,7 @@ async def defrag_network(
     network_raw, minimized_elements, _minimized_connections, _network_dict = minimize_network(db_network)
 
     result, defrag_timeline_events = network_defrag(network_raw, payload.avg_arrival_interval, payload.avg_holding_time,
-                                                    payload.service_arrival_time_max)
+                                                    payload.service_num)
 
     for timeline_event in tqdm(
                 defrag_timeline_events,
@@ -246,11 +247,31 @@ async def defrag_network(
                 from gnpy.core.elements import Transceiver, Fiber, RamanFiber, Roadm, Edfa
                 from gnpy.core.utils import per_label_average
                 last_transceiver = path[-1]
+                last_gsnr = 0.0
                 if isinstance(last_transceiver, Transceiver):
-                    service_data_dict['gsnr'] = list(per_label_average(
+                    last_gsnr = list(per_label_average(
                         last_transceiver.snr,
                         last_transceiver.propagated_labels
                     ).values())[0]
+                    service_data_dict['gsnr'] = last_gsnr
+                if last_gsnr >= 26.5 - 1:
+                    capacity = 800
+                elif last_gsnr >= 25.0 - 1:
+                    capacity = 700
+                elif last_gsnr >= 23.5 - 1:
+                    capacity = 600
+                elif last_gsnr >= 21.0 - 1:
+                    capacity = 500
+                elif last_gsnr >= 18.7 - 1:
+                    capacity = 400
+                elif last_gsnr >= 15:
+                    capacity = 200
+                else:
+                    capacity = 1e-6
+                utilization = service_data_dict['bit_rate_requirement'] / capacity
+                if utilization > 1.0:
+                    utilization = 1.0
+                service_data_dict['utilization'] = utilization
             else:
                 print('[WARN] Can not simulate with None element id.')
 

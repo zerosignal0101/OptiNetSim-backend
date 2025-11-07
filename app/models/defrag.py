@@ -5,27 +5,26 @@ from typing import List, Literal, Union, Optional, Annotated
 class DefragRequest(BaseModel):
     avg_arrival_interval: float
     avg_holding_time: float
-    service_arrival_time_max: int
+    service_num: int
 
 
 class DefragService(BaseModel):
-    service_id: int
     source_id: str
     destination_id: str
     arrival_time: float
     departure_time: float
-    bit_rate: float
-    power: float
+    bit_rate_requirement: float
+    snr_requirement: float
     path: List[str]
     wavelength: int
-    snr_requirement: float
+    power: float
     gsnr: float
     utilization: float
 
 
 class DefragResult(BaseModel):
-    blocknum1: int
-    blocknum2: int
+    block_num_ksp_only: int
+    block_num_with_mat: int
 
 
 # 2. 为每种 event_type 的 "details" 定义模型
