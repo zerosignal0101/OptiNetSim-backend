@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import networkx as nx
 
+from ....core.auth import get_current_active_user
 from ....core.database import get_database
 from ....crud import crud_network
 from ....models.network import ServiceCreate, ServiceInDB, ServiceUpdate
@@ -21,7 +22,8 @@ router = APIRouter()
 )
 async def list_services(
         network_id: str,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Retrieves a list of all services provisioned within the specified optical network.
@@ -44,7 +46,8 @@ async def list_services(
 async def create_service(
         network_id: str,
         service_in: ServiceCreate,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Creates a new service (e.g., optical path, channel) within the specified optical network.
@@ -85,7 +88,8 @@ async def create_service(
 async def get_service(
         network_id: str,
         service_id: str,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Retrieves the detailed information for a specific service within a network.
@@ -116,7 +120,8 @@ async def update_service(
         network_id: str,
         service_id: str,
         payload: ServiceUpdate,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Updates specific fields of a service within a network.
@@ -147,7 +152,8 @@ async def update_service(
 async def delete_service(
         network_id: str,
         service_id: str,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Deletes a specific service from a network.
@@ -175,7 +181,8 @@ async def delete_service(
 async def single_link(
         network_id: str,
         service_id: str,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Single link Simulation

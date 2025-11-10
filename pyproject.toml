@@ -12,8 +12,10 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "uuid6>=2025.0.1",
     "uvicorn[standard]>=0.35.0",
-    "band-defrag @ git+https://github.com/zerosignal0101/band-defrag.git",
     "gnpy (>=2.13.0,<3.0.0)",
+    "python-jose[cryptography]>=3.3.0",
+    "bcrypt>=4.0.0",
+    "python-multipart>=0.0.6",
 ]
 
 [tool.poetry]

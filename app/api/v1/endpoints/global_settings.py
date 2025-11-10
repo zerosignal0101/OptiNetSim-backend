@@ -3,6 +3,7 @@ from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from ....core.auth import get_current_active_user
 from ....core.database import get_database
 from ....crud import crud_network
 from ....models.network import SIConfig, SpanConfig, SimulationConfig
@@ -18,7 +19,8 @@ router = APIRouter()
 async def update_network_simulation_config(
         network_id: str,
         payload: SimulationConfig,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Updates the simulation global settings for a specific optical network.
@@ -41,7 +43,8 @@ async def update_network_simulation_config(
 async def update_network_si(
         network_id: str,
         payload: SIConfig,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Updates the Spectrum Information (SI) global settings for a specific optical network.
@@ -64,7 +67,8 @@ async def update_network_si(
 async def update_network_span(
         network_id: str,
         payload: SpanConfig,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Updates the Span parameters global settings for a specific optical network.

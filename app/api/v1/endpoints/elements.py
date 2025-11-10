@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from ....core.auth import get_current_active_user
 from ....core.database import get_database
 from ....crud import crud_network
 from ....models.network import ElementCreate, ElementInDB, ElementUpdate
@@ -19,7 +20,8 @@ router = APIRouter()
 async def add_element(
         network_id: str,
         element_in: ElementCreate,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Adds a new topology element (e.g., Transceiver, Fiber) to the specified optical network.
@@ -41,7 +43,8 @@ async def add_element(
 async def get_element(
         network_id: str,
         element_id: str,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Retrieves the detailed information for a specific topology element within a network.
@@ -73,7 +76,8 @@ async def update_element(
         network_id: str,
         element_id: str,
         payload: ElementUpdate,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Updates specific fields of a topology element within a network.
@@ -104,7 +108,8 @@ async def update_element(
 async def delete_element(
         network_id: str,
         element_id: str,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Deletes a specific topology element from a network.

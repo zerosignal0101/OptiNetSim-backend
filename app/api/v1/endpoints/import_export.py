@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import ValidationError  # 导入 ValidationError
 
+from ....core.auth import get_current_active_user
 from ....core.database import get_database
 from ....crud import crud_network
 from ....models.network import NetworkDetailResponse, NetworkImport, NetworkResponse, SubTopologyImport
@@ -17,7 +18,8 @@ router = APIRouter()
 )
 async def export_network(
         network_id: str,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Exports a specified optical network, including its structure, global settings, and services.
@@ -43,7 +45,8 @@ async def export_network(
 )
 async def import_network(
         network_in: NetworkImport,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Imports a complete network structure, creating a new network in the system.
@@ -84,7 +87,8 @@ async def import_network(
 async def insert_topology(
         network_id: str,
         sub_topology_in: SubTopologyImport,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Inserts a sub-topology (elements and connections) into an existing network.

@@ -9,6 +9,7 @@ from tqdm import tqdm
 from band_defrag.utils.blocking_utils import EVENT_ALLOCATION, EVENT_REALLOCATION, EVENT_RELEASE_EXPIRED
 
 from ....core.database import get_database
+from ....core.auth import get_current_active_user
 from ....crud import crud_network
 from ....models.defrag import DefragRequest, DefragResponse, DefragService
 from ....models.network import (
@@ -31,7 +32,8 @@ router = APIRouter()
 )
 async def create_network(
         network_in: NetworkCreate,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Creates a new, empty optical network with a given name.
@@ -54,7 +56,8 @@ async def get_all_networks(
         name_contains: Optional[str] = Query(None, description="Filter by network name (case-insensitive)"),
         sort_by: str = Query("created_at", enum=["created_at", "updated_at", "network_name"]),
         order: str = Query("desc", enum=["asc", "desc"]),
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Retrieves a paginated, filterable, and sortable list of all networks.
@@ -83,7 +86,8 @@ async def get_all_networks(
 )
 async def get_network(
         network_id: str,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Retrieves the full topology and configuration for a specific network.
@@ -107,7 +111,8 @@ async def get_network(
 )
 async def get_minimized_network(
         network_id: str,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Retrieves the minimized topology and configuration for a specific network.
@@ -150,7 +155,8 @@ async def get_minimized_network(
 async def update_network_name(
         network_id: str,
         payload: NetworkUpdate,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Updates the name of a specific network.
@@ -174,7 +180,8 @@ async def update_network_name(
 )
 async def delete_network(
         network_id: str,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Deletes a network and all its associated topology, services, and configurations.
@@ -197,7 +204,8 @@ async def delete_network(
 async def defrag_network(
         network_id: str,
         payload: DefragRequest,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Deletes a network and all its associated topology, services, and configurations.
@@ -273,7 +281,8 @@ async def defrag_network(
 async def single_link(
         network_id: str,
         payload: SingleLinkSimulationRequest,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Single link Simulation

@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from ....core.auth import get_current_active_user
 from ....core.database import get_database
 from ....crud import crud_network
 from ....models.network import ConnectionCreate, ConnectionInDB
@@ -19,7 +20,8 @@ router = APIRouter()
 async def create_connection(
         network_id: str,
         connection_in: ConnectionCreate,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Creates a new connection between two topology nodes within the specified optical network.
@@ -74,7 +76,8 @@ async def create_connection(
 async def get_connection(
         network_id: str,
         connection_id: str,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Retrieves the detailed information for a specific topology connection within a network.
@@ -104,7 +107,8 @@ async def get_connection(
 async def delete_connection(
         network_id: str,
         connection_id: str,
-        db: AsyncIOMotorDatabase = Depends(get_database)
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: str = Depends(get_current_active_user)
 ):
     """
     Deletes a specific topology connection from a network.
