@@ -17,7 +17,7 @@ The project follows a modular structure to separate concerns:
 ```
 OptiNetSim-backend/
 ├── .env                  # Environment variables
-├── pyproject.toml        # Project dependencies (for uv)
+├── pyproject.toml        # Project dependencies (for poetry)
 ├── main.py               # FastAPI application entrypoint
 ├── README.md             # This file
 └── app/
@@ -43,7 +43,7 @@ OptiNetSim-backend/
     cd OptiNetSim-backend
     ```
 
-2.  **Install dependencies using `uv`:**
+2.  **Install dependencies using `poetry`:**
     ```bash
     poetry install
     ```

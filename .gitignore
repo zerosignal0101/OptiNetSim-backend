@@ -12,6 +12,7 @@ wheels/
 # IDE
 .idea
 .vscode
+CLAUDE.md
 
 # Env
 .env
