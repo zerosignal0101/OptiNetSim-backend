@@ -19,32 +19,36 @@ COLLECTION = "networks"
 
 # --- Network CRUD ---
 
-async def create_network(db: AsyncIOMotorDatabase, network: NetworkCreate) -> NetworkInDB:
+async def create_network(db: AsyncIOMotorDatabase, network: NetworkCreate, user_id: str) -> NetworkInDB:
     network_data = network.model_dump()
     now = datetime.utcnow()
-    db_network = NetworkInDB(**network_data, created_at=now, updated_at=now)
+    db_network = NetworkInDB(**network_data, user_id=user_id, created_at=now, updated_at=now)
 
     # Using model_dump(by_alias=True) to respect the '_id' alias
     await db[COLLECTION].insert_one(db_network.model_dump(by_alias=True))
     return db_network
 
 
-async def get_network(db: AsyncIOMotorDatabase, network_id: str) -> Optional[NetworkInDB]:
+async def get_network(db: AsyncIOMotorDatabase, network_id: str, user_id: str) -> Optional[NetworkInDB]:
     if not ObjectId.is_valid(network_id):
         return None
-    doc = await db[COLLECTION].find_one({"_id": ObjectId(network_id)})
+    doc = await db[COLLECTION].find_one({
+        "_id": ObjectId(network_id),
+        "user_id": user_id  # User isolation filter
+    })
     return NetworkInDB(**doc) if doc else None
 
 
 async def get_all_networks(
         db: AsyncIOMotorDatabase,
+        user_id: str,  # Add user context
         page: int,
         limit: int,
         name_contains: Optional[str],
         sort_by: str,
         order: str
 ) -> Tuple[List[NetworkInDB], int]:  # 修改返回类型提示
-    query = {}
+    query = {"user_id": user_id}  # User isolation filter
     if name_contains:
         query["network_name"] = {"$regex": name_contains, "$options": "i"}
 
@@ -59,18 +63,21 @@ async def get_all_networks(
     return networks, total_count
 
 
-async def update_network(db: AsyncIOMotorDatabase, network_id: str, payload: NetworkUpdate) -> Optional[NetworkInDB]:
+async def update_network(db: AsyncIOMotorDatabase, network_id: str, payload: NetworkUpdate, user_id: str) -> Optional[NetworkInDB]:
     if not ObjectId.is_valid(network_id):
         return None
 
     update_data = payload.model_dump(exclude_unset=True)
     if not update_data:  # 如果没有提供更新数据，则无需操作
-        return await get_network(db, network_id)
+        return await get_network(db, network_id, user_id)
 
     update_data["updated_at"] = datetime.utcnow()
 
     result = await db[COLLECTION].find_one_and_update(
-        {"_id": ObjectId(network_id)},
+        {
+            "_id": ObjectId(network_id),
+            "user_id": user_id  # User isolation filter
+        },
         {"$set": update_data},
         return_document=True,  # 返回更新后的文档
         upsert=False  # 不创建新文档
@@ -78,17 +85,20 @@ async def update_network(db: AsyncIOMotorDatabase, network_id: str, payload: Net
     return NetworkInDB(**result) if result else None
 
 
-async def delete_network(db: AsyncIOMotorDatabase, network_id: str) -> bool:
+async def delete_network(db: AsyncIOMotorDatabase, network_id: str, user_id: str) -> bool:
     if not ObjectId.is_valid(network_id):
         return False
-    result = await db[COLLECTION].delete_one({"_id": ObjectId(network_id)})
+    result = await db[COLLECTION].delete_one({
+        "_id": ObjectId(network_id),
+        "user_id": user_id  # User isolation filter
+    })
     return result.deleted_count > 0
 
 
 # --- Topology Element (Node) CRUD ---
 
-async def get_element_from_network(db: AsyncIOMotorDatabase, network_id: str, element_id: str) -> Optional[ElementInDB]:
-    network = await get_network(db, network_id)
+async def get_element_from_network(db: AsyncIOMotorDatabase, network_id: str, element_id: str, user_id: str) -> Optional[ElementInDB]:
+    network = await get_network(db, network_id, user_id)
     if not network:
         return None
     for element in network.elements:
@@ -97,14 +107,14 @@ async def get_element_from_network(db: AsyncIOMotorDatabase, network_id: str, el
     return None
 
 
-async def add_element_to_network(db: AsyncIOMotorDatabase, network_id: str, element: ElementCreate) \
+async def add_element_to_network(db: AsyncIOMotorDatabase, network_id: str, element: ElementCreate, user_id: str) \
         -> Optional[ElementInDB]:
     if not ObjectId.is_valid(network_id):
         return None
 
     new_element = ElementInDB(**element.model_dump(exclude_unset=True, exclude={"element_id"}))  # 生成新的 element_id
     result = await db[COLLECTION].update_one(
-        {"_id": ObjectId(network_id)},
+        {"_id": ObjectId(network_id), "user_id": user_id},
         {
             "$push": {"elements": new_element.model_dump()},
             "$set": {"updated_at": datetime.utcnow()}
@@ -114,11 +124,11 @@ async def add_element_to_network(db: AsyncIOMotorDatabase, network_id: str, elem
 
 
 async def update_element_in_network(db: AsyncIOMotorDatabase, network_id: str, element_id: str,
-                                    payload: ElementUpdate) -> Optional[ElementInDB]:
+                                    payload: ElementUpdate, user_id: str) -> Optional[ElementInDB]:
     if not ObjectId.is_valid(network_id):
         return None
 
-    network = await get_network(db, network_id)
+    network = await get_network(db, network_id, user_id)
     if not network:
         return None
 
@@ -136,21 +146,21 @@ async def update_element_in_network(db: AsyncIOMotorDatabase, network_id: str, e
     set_fields["updated_at"] = datetime.utcnow()  # Update network's updated_at timestamp
 
     result = await db[COLLECTION].update_one(
-        {"_id": ObjectId(network_id), "elements.element_id": element_id},
+        {"_id": ObjectId(network_id), "user_id": user_id, "elements.element_id": element_id},
         {"$set": set_fields}
     )
     if result.modified_count > 0:
         # Fetch the updated network to return the specific element
-        updated_network = await get_network(db, network_id)
+        updated_network = await get_network(db, network_id, user_id)
         return next((el for el in updated_network.elements if el.element_id == element_id), None)
     return None
 
 
-async def delete_element_from_network(db: AsyncIOMotorDatabase, network_id: str, element_id: str) -> bool:
+async def delete_element_from_network(db: AsyncIOMotorDatabase, network_id: str, element_id: str, user_id: str) -> bool:
     if not ObjectId.is_valid(network_id):
         return False
     result = await db[COLLECTION].update_one(
-        {"_id": ObjectId(network_id)},
+        {"_id": ObjectId(network_id), "user_id": user_id},
         {
             "$pull": {
                 "elements": {"element_id": element_id},
@@ -169,9 +179,9 @@ async def delete_element_from_network(db: AsyncIOMotorDatabase, network_id: str,
 
 # --- Topology Connection CRUD ---
 
-async def get_connection_from_network(db: AsyncIOMotorDatabase, network_id: str, connection_id: str) -> Optional[
+async def get_connection_from_network(db: AsyncIOMotorDatabase, network_id: str, connection_id: str, user_id: str) -> Optional[
     ConnectionInDB]:
-    network = await get_network(db, network_id)
+    network = await get_network(db, network_id, user_id)
     if not network:
         return None
     for connection in network.connections:
@@ -180,14 +190,14 @@ async def get_connection_from_network(db: AsyncIOMotorDatabase, network_id: str,
     return None
 
 
-async def add_connection_to_network(db: AsyncIOMotorDatabase, network_id: str, connection: ConnectionCreate) -> \
+async def add_connection_to_network(db: AsyncIOMotorDatabase, network_id: str, connection: ConnectionCreate, user_id: str) -> \
         Optional[ConnectionInDB]:
     if not ObjectId.is_valid(network_id):
         return None
 
     new_connection = ConnectionInDB(**connection.model_dump())
     result = await db[COLLECTION].update_one(
-        {"_id": ObjectId(network_id)},
+        {"_id": ObjectId(network_id), "user_id": user_id},
         {
             "$push": {"connections": new_connection.model_dump()},
             "$set": {"updated_at": datetime.utcnow()}
@@ -196,11 +206,11 @@ async def add_connection_to_network(db: AsyncIOMotorDatabase, network_id: str, c
     return new_connection if result.modified_count > 0 else None
 
 
-async def delete_connection_from_network(db: AsyncIOMotorDatabase, network_id: str, connection_id: str) -> bool:
+async def delete_connection_from_network(db: AsyncIOMotorDatabase, network_id: str, connection_id: str, user_id: str) -> bool:
     if not ObjectId.is_valid(network_id):
         return False
     result = await db[COLLECTION].update_one(
-        {"_id": ObjectId(network_id)},
+        {"_id": ObjectId(network_id), "user_id": user_id},
         {
             "$pull": {"connections": {"connection_id": connection_id}},
             "$set": {"updated_at": datetime.utcnow()}
@@ -211,15 +221,15 @@ async def delete_connection_from_network(db: AsyncIOMotorDatabase, network_id: s
 
 # --- Service CRUD ---
 
-async def get_all_services_in_network(db: AsyncIOMotorDatabase, network_id: str) -> Optional[List[ServiceInDB]]:
-    network = await get_network(db, network_id)
+async def get_all_services_in_network(db: AsyncIOMotorDatabase, network_id: str, user_id: str) -> Optional[List[ServiceInDB]]:
+    network = await get_network(db, network_id, user_id)
     if not network:
         return None
     return network.services
 
 
-async def get_service_from_network(db: AsyncIOMotorDatabase, network_id: str, service_id: str) -> Optional[ServiceInDB]:
-    network = await get_network(db, network_id)
+async def get_service_from_network(db: AsyncIOMotorDatabase, network_id: str, service_id: str, user_id: str) -> Optional[ServiceInDB]:
+    network = await get_network(db, network_id, user_id)
     if not network:
         return None
     for service in network.services:
@@ -228,14 +238,14 @@ async def get_service_from_network(db: AsyncIOMotorDatabase, network_id: str, se
     return None
 
 
-async def add_service_to_network(db: AsyncIOMotorDatabase, network_id: str, service: ServiceCreate) -> Optional[
+async def add_service_to_network(db: AsyncIOMotorDatabase, network_id: str, service: ServiceCreate, user_id: str) -> Optional[
     ServiceInDB]:
     if not ObjectId.is_valid(network_id):
         return None
 
     new_service = ServiceInDB(**service.model_dump())
     result = await db[COLLECTION].update_one(
-        {"_id": ObjectId(network_id)},
+        {"_id": ObjectId(network_id), "user_id": user_id},
         {
             "$push": {"services": new_service.model_dump()},
             "$set": {"updated_at": datetime.utcnow()}
@@ -245,11 +255,11 @@ async def add_service_to_network(db: AsyncIOMotorDatabase, network_id: str, serv
 
 
 async def update_service_in_network(db: AsyncIOMotorDatabase, network_id: str, service_id: str,
-                                    payload: ServiceUpdate) -> Optional[ServiceInDB]:
+                                    payload: ServiceUpdate, user_id: str) -> Optional[ServiceInDB]:
     if not ObjectId.is_valid(network_id):
         return None
 
-    network = await get_network(db, network_id)
+    network = await get_network(db, network_id, user_id)
     if not network:
         return None
 
@@ -265,20 +275,20 @@ async def update_service_in_network(db: AsyncIOMotorDatabase, network_id: str, s
     set_fields["services.$.updated_at"] = datetime.utcnow()
 
     result = await db[COLLECTION].update_one(
-        {"_id": ObjectId(network_id), "services.service_id": service_id},
+        {"_id": ObjectId(network_id), "user_id": user_id, "services.service_id": service_id},
         {"$set": set_fields}
     )
     if result.modified_count > 0:
-        updated_network = await get_network(db, network_id)
+        updated_network = await get_network(db, network_id, user_id)
         return next((s for s in updated_network.services if s.service_id == service_id), None)
     return None
 
 
-async def delete_service_from_network(db: AsyncIOMotorDatabase, network_id: str, service_id: str) -> bool:
+async def delete_service_from_network(db: AsyncIOMotorDatabase, network_id: str, service_id: str, user_id: str) -> bool:
     if not ObjectId.is_valid(network_id):
         return False
     result = await db[COLLECTION].update_one(
-        {"_id": ObjectId(network_id)},
+        {"_id": ObjectId(network_id), "user_id": user_id},
         {
             "$pull": {"services": {"service_id": service_id}},
             "$set": {"updated_at": datetime.utcnow()}
@@ -289,36 +299,36 @@ async def delete_service_from_network(db: AsyncIOMotorDatabase, network_id: str,
 
 # --- Global Settings Update ---
 
-async def update_simulation_config(db: AsyncIOMotorDatabase, network_id: str, payload: SimulationConfig) -> Optional[
+async def update_simulation_config(db: AsyncIOMotorDatabase, network_id: str, payload: SimulationConfig, user_id: str) -> Optional[
     SimulationConfig]:
     if not ObjectId.is_valid(network_id):
         return None
     update_data = payload.model_dump(exclude_unset=True)
-    return await update_global_setting(db, network_id, "simulation_config", update_data)
+    return await update_global_setting(db, network_id, "simulation_config", update_data, user_id)
 
 
-async def update_si_config(db: AsyncIOMotorDatabase, network_id: str, payload: SIConfig) -> Optional[SIConfig]:
+async def update_si_config(db: AsyncIOMotorDatabase, network_id: str, payload: SIConfig, user_id: str) -> Optional[SIConfig]:
     if not ObjectId.is_valid(network_id):
         return None
     update_data = payload.model_dump(exclude_unset=True)
-    result = await update_global_setting(db, network_id, "SI", update_data)
+    result = await update_global_setting(db, network_id, "SI", update_data, user_id)
     return SIConfig(**result) if result else None
 
 
-async def update_span_config(db: AsyncIOMotorDatabase, network_id: str, payload: SpanConfig) -> Optional[SpanConfig]:
+async def update_span_config(db: AsyncIOMotorDatabase, network_id: str, payload: SpanConfig, user_id: str) -> Optional[SpanConfig]:
     if not ObjectId.is_valid(network_id):
         return None
     update_data = payload.model_dump(exclude_unset=True)
-    result = await update_global_setting(db, network_id, "Span", update_data)
+    result = await update_global_setting(db, network_id, "Span", update_data, user_id)
     return SpanConfig(**result) if result else None
 
 
 async def update_global_setting(db: AsyncIOMotorDatabase, network_id: str, setting_path: str,
                                 # changed from setting_name to setting_path
-                                payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+                                payload: Dict[str, Any], user_id: str) -> Optional[Dict[str, Any]]:
     if not payload:
         # If payload is empty, return current setting
-        network = await get_network(db, network_id)
+        network = await get_network(db, network_id, user_id)
         return getattr(network, setting_path).model_dump() if network else None
 
     # Construct the update query using dotted notation
@@ -328,7 +338,7 @@ async def update_global_setting(db: AsyncIOMotorDatabase, network_id: str, setti
     update_fields["updated_at"] = datetime.utcnow()
 
     result = await db[COLLECTION].find_one_and_update(
-        {"_id": ObjectId(network_id)},
+        {"_id": ObjectId(network_id), "user_id": user_id},
         {"$set": update_fields},
         return_document=True,
         upsert=False
@@ -348,7 +358,7 @@ async def update_global_setting(db: AsyncIOMotorDatabase, network_id: str, setti
 
 # --- Import/Export ---
 
-async def create_network_from_import(db: AsyncIOMotorDatabase, import_data: NetworkImport) -> NetworkInDB:
+async def create_network_from_import(db: AsyncIOMotorDatabase, import_data: NetworkImport, user_id: str) -> NetworkInDB:
     element_id_map = {}
     elements_in_db = []
     for el_create in import_data.elements:
@@ -393,6 +403,7 @@ async def create_network_from_import(db: AsyncIOMotorDatabase, import_data: Netw
     now = datetime.utcnow()
     network_doc = {
         "network_name": import_data.network_name,
+        "user_id": user_id,  # Add user_id for user isolation
         "created_at": now,
         "updated_at": now,
         "elements": [el.model_dump() for el in elements_in_db],
@@ -408,12 +419,12 @@ async def create_network_from_import(db: AsyncIOMotorDatabase, import_data: Netw
     return NetworkInDB(**created_doc)
 
 
-async def insert_sub_topology(db: AsyncIOMotorDatabase, network_id: str, sub_topo: SubTopologyImport) -> Optional[
+async def insert_sub_topology(db: AsyncIOMotorDatabase, network_id: str, sub_topo: SubTopologyImport, user_id: str) -> Optional[
     NetworkInDB]:
     if not ObjectId.is_valid(network_id):
         return None
 
-    existing_network = await get_network(db, network_id)
+    existing_network = await get_network(db, network_id, user_id)
     if not existing_network:
         return None
 
@@ -469,7 +480,7 @@ async def insert_sub_topology(db: AsyncIOMotorDatabase, network_id: str, sub_top
 
     # Update the network with new elements and connections
     result = await db[COLLECTION].update_one(
-        {"_id": ObjectId(network_id)},
+        {"_id": ObjectId(network_id), "user_id": user_id},
         {
             "$push": {
                 "elements": {"$each": [el.model_dump() for el in new_elements_for_db]},
@@ -479,5 +490,5 @@ async def insert_sub_topology(db: AsyncIOMotorDatabase, network_id: str, sub_top
         }
     )
     if result.modified_count > 0:
-        return await get_network(db, network_id)
+        return await get_network(db, network_id, user_id)
     return None

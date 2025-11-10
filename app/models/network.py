@@ -181,6 +181,7 @@ class NetworkUpdate(NetworkBase):
 
 class NetworkInDB(NetworkBase):
     id: ObjectId = Field(default_factory=ObjectId, alias="_id")
+    user_id: str = Field(..., description="Username of the network owner")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     elements: List[ElementInDB] = Field(default_factory=list)

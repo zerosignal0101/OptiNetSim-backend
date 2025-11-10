@@ -7,6 +7,7 @@ from ....core.auth import get_current_active_user
 from ....core.database import get_database
 from ....crud import crud_network
 from ....models.network import SIConfig, SpanConfig, SimulationConfig
+from ....models.user import TokenData
 
 router = APIRouter()
 
@@ -20,13 +21,13 @@ async def update_network_simulation_config(
         network_id: str,
         payload: SimulationConfig,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Updates the simulation global settings for a specific optical network.
     Only fields provided in the request body will be updated.
     """
-    updated_config = await crud_network.update_simulation_config(db, network_id, payload)
+    updated_config = await crud_network.update_simulation_config(db, network_id, payload, current_user.username)
     if updated_config is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -44,13 +45,13 @@ async def update_network_si(
         network_id: str,
         payload: SIConfig,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Updates the Spectrum Information (SI) global settings for a specific optical network.
     Only fields provided in the request body will be updated.
     """
-    updated_si = await crud_network.update_si_config(db, network_id, payload)
+    updated_si = await crud_network.update_si_config(db, network_id, payload, current_user.username)
     if updated_si is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -68,13 +69,13 @@ async def update_network_span(
         network_id: str,
         payload: SpanConfig,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Updates the Span parameters global settings for a specific optical network.
     Only fields provided in the request body will be updated.
     """
-    updated_span = await crud_network.update_span_config(db, network_id, payload)
+    updated_span = await crud_network.update_span_config(db, network_id, payload, current_user.username)
     if updated_span is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

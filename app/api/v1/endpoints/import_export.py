@@ -7,6 +7,7 @@ from ....core.auth import get_current_active_user
 from ....core.database import get_database
 from ....crud import crud_network
 from ....models.network import NetworkDetailResponse, NetworkImport, NetworkResponse, SubTopologyImport
+from ....models.user import TokenData
 
 router = APIRouter()
 
@@ -19,12 +20,12 @@ router = APIRouter()
 async def export_network(
         network_id: str,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Exports a specified optical network, including its structure, global settings, and services.
     """
-    db_network = await crud_network.get_network(db, network_id)
+    db_network = await crud_network.get_network(db, network_id, current_user.username)
     if db_network is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -46,14 +47,14 @@ async def export_network(
 async def import_network(
         network_in: NetworkImport,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Imports a complete network structure, creating a new network in the system.
     Server will generate new IDs for all elements, connections, and services.
     """
     try:
-        db_network = await crud_network.create_network_from_import(db, network_in)
+        db_network = await crud_network.create_network_from_import(db, network_in, current_user.username)
         return NetworkResponse(
             network_id=str(db_network.id),
             **db_network.model_dump()
@@ -88,14 +89,14 @@ async def insert_topology(
         network_id: str,
         sub_topology_in: SubTopologyImport,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Inserts a sub-topology (elements and connections) into an existing network.
     Existing network's global settings (SI, Span, SimulationConfig) are not affected.
     """
     try:
-        updated_network = await crud_network.insert_sub_topology(db, network_id, sub_topology_in)
+        updated_network = await crud_network.insert_sub_topology(db, network_id, sub_topology_in, current_user.username)
         if updated_network is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

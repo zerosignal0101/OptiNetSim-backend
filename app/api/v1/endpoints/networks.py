@@ -12,6 +12,7 @@ from ....core.database import get_database
 from ....core.auth import get_current_active_user
 from ....crud import crud_network
 from ....models.defrag import DefragRequest, DefragResponse, DefragService
+from ....models.user import TokenData
 from ....models.network import (
     NetworkCreate, NetworkResponse, NetworkListResponse,
     NetworkDetailResponse, NetworkUpdate, ServiceInDB
@@ -33,12 +34,12 @@ router = APIRouter()
 async def create_network(
         network_in: NetworkCreate,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Creates a new, empty optical network with a given name.
     """
-    db_network = await crud_network.create_network(db, network=network_in)
+    db_network = await crud_network.create_network(db, network=network_in, user_id=current_user.username)
     return NetworkResponse(
         network_id=str(db_network.id),
         **db_network.model_dump()
@@ -57,13 +58,13 @@ async def get_all_networks(
         sort_by: str = Query("created_at", enum=["created_at", "updated_at", "network_name"]),
         order: str = Query("desc", enum=["asc", "desc"]),
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Retrieves a paginated, filterable, and sortable list of all networks.
     """
     networks, total_count = await crud_network.get_all_networks(
-        db, page, limit, name_contains, sort_by, order
+        db, current_user.username, page, limit, name_contains, sort_by, order
     )
 
     response_networks = [
@@ -87,12 +88,12 @@ async def get_all_networks(
 async def get_network(
         network_id: str,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Retrieves the full topology and configuration for a specific network.
     """
-    db_network = await crud_network.get_network(db, network_id)
+    db_network = await crud_network.get_network(db, network_id, current_user.username)
     if db_network is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -112,7 +113,7 @@ async def get_network(
 async def get_minimized_network(
         network_id: str,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Retrieves the minimized topology and configuration for a specific network.
@@ -122,7 +123,7 @@ async def get_minimized_network(
        with fiber length as weight
     """
     # 获取原始网络数据
-    db_network = await crud_network.get_network(db, network_id)
+    db_network = await crud_network.get_network(db, network_id, current_user.username)
     if db_network is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -156,12 +157,12 @@ async def update_network_name(
         network_id: str,
         payload: NetworkUpdate,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Updates the name of a specific network.
     """
-    updated_network = await crud_network.update_network(db, network_id, payload)
+    updated_network = await crud_network.update_network(db, network_id, payload, current_user.username)
     if updated_network is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -181,12 +182,12 @@ async def update_network_name(
 async def delete_network(
         network_id: str,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Deletes a network and all its associated topology, services, and configurations.
     """
-    success = await crud_network.delete_network(db, network_id)
+    success = await crud_network.delete_network(db, network_id, current_user.username)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -205,13 +206,13 @@ async def defrag_network(
         network_id: str,
         payload: DefragRequest,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Deletes a network and all its associated topology, services, and configurations.
     """
     # 获取原始网络数据
-    db_network = await crud_network.get_network(db, network_id)
+    db_network = await crud_network.get_network(db, network_id, current_user.username)
     if db_network is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -282,12 +283,12 @@ async def single_link(
         network_id: str,
         payload: SingleLinkSimulationRequest,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Single link Simulation
     """
-    db_network = await crud_network.get_network(db, network_id)
+    db_network = await crud_network.get_network(db, network_id, current_user.username)
     if db_network is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

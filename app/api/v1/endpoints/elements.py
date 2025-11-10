@@ -7,6 +7,7 @@ from ....core.auth import get_current_active_user
 from ....core.database import get_database
 from ....crud import crud_network
 from ....models.network import ElementCreate, ElementInDB, ElementUpdate
+from ....models.user import TokenData
 
 router = APIRouter()
 
@@ -21,12 +22,12 @@ async def add_element(
         network_id: str,
         element_in: ElementCreate,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Adds a new topology element (e.g., Transceiver, Fiber) to the specified optical network.
     """
-    db_element = await crud_network.add_element_to_network(db, network_id, element_in)
+    db_element = await crud_network.add_element_to_network(db, network_id, element_in, current_user.username)
     if db_element is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -44,15 +45,15 @@ async def get_element(
         network_id: str,
         element_id: str,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Retrieves the detailed information for a specific topology element within a network.
     """
-    element = await crud_network.get_element_from_network(db, network_id, element_id)
+    element = await crud_network.get_element_from_network(db, network_id, element_id, current_user.username)
     if element is None:
         # Differentiate between network not found and element not found in network
-        network_exists = await crud_network.get_network(db, network_id)
+        network_exists = await crud_network.get_network(db, network_id, current_user.username)
         if not network_exists:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -77,15 +78,15 @@ async def update_element(
         element_id: str,
         payload: ElementUpdate,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Updates specific fields of a topology element within a network.
     Only fields provided in the request body will be updated.
     """
-    updated_element = await crud_network.update_element_in_network(db, network_id, element_id, payload)
+    updated_element = await crud_network.update_element_in_network(db, network_id, element_id, payload, current_user.username)
     if updated_element is None:
-        network_exists = await crud_network.get_network(db, network_id)
+        network_exists = await crud_network.get_network(db, network_id, current_user.username)
         if not network_exists:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -109,14 +110,14 @@ async def delete_element(
         network_id: str,
         element_id: str,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Deletes a specific topology element from a network.
     """
-    success = await crud_network.delete_element_from_network(db, network_id, element_id)
+    success = await crud_network.delete_element_from_network(db, network_id, element_id, current_user.username)
     if not success:
-        network_exists = await crud_network.get_network(db, network_id)
+        network_exists = await crud_network.get_network(db, network_id, current_user.username)
         if not network_exists:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

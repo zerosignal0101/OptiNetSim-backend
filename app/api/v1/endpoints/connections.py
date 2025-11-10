@@ -7,6 +7,7 @@ from ....core.auth import get_current_active_user
 from ....core.database import get_database
 from ....crud import crud_network
 from ....models.network import ConnectionCreate, ConnectionInDB
+from ....models.user import TokenData
 
 router = APIRouter()
 
@@ -21,13 +22,13 @@ async def create_connection(
         network_id: str,
         connection_in: ConnectionCreate,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Creates a new connection between two topology nodes within the specified optical network.
     """
     # Basic validation: Check if from_node and to_node exist as elements in the network
-    network = await crud_network.get_network(db, network_id)
+    network = await crud_network.get_network(db, network_id, current_user.username)
     if not network:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -58,7 +59,7 @@ async def create_connection(
                     "message": f"A connection between '{connection_in.from_node}' and '{connection_in.to_node}' already exists."}
         )
 
-    db_connection = await crud_network.add_connection_to_network(db, network_id, connection_in)
+    db_connection = await crud_network.add_connection_to_network(db, network_id, connection_in, current_user.username)
     if db_connection is None:
         # This case should ideally not happen if network_id is valid and nodes exist
         raise HTTPException(
@@ -77,14 +78,14 @@ async def get_connection(
         network_id: str,
         connection_id: str,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Retrieves the detailed information for a specific topology connection within a network.
     """
-    connection = await crud_network.get_connection_from_network(db, network_id, connection_id)
+    connection = await crud_network.get_connection_from_network(db, network_id, connection_id, current_user.username)
     if connection is None:
-        network_exists = await crud_network.get_network(db, network_id)
+        network_exists = await crud_network.get_network(db, network_id, current_user.username)
         if not network_exists:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -108,14 +109,14 @@ async def delete_connection(
         network_id: str,
         connection_id: str,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Deletes a specific topology connection from a network.
     """
-    success = await crud_network.delete_connection_from_network(db, network_id, connection_id)
+    success = await crud_network.delete_connection_from_network(db, network_id, connection_id, current_user.username)
     if not success:
-        network_exists = await crud_network.get_network(db, network_id)
+        network_exists = await crud_network.get_network(db, network_id, current_user.username)
         if not network_exists:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

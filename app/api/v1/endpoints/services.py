@@ -8,6 +8,7 @@ from ....core.auth import get_current_active_user
 from ....core.database import get_database
 from ....crud import crud_network
 from ....models.network import ServiceCreate, ServiceInDB, ServiceUpdate
+from ....models.user import TokenData
 from ....utils.minimize import minimize_network
 from ....models.simulation import SingleLinkSimulationResponse, SimulationTransceiverResult
 from ....services.simulation import single_link_simulate
@@ -23,12 +24,12 @@ router = APIRouter()
 async def list_services(
         network_id: str,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Retrieves a list of all services provisioned within the specified optical network.
     """
-    services = await crud_network.get_all_services_in_network(db, network_id)
+    services = await crud_network.get_all_services_in_network(db, network_id, current_user.username)
     if services is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -47,13 +48,13 @@ async def create_service(
         network_id: str,
         service_in: ServiceCreate,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Creates a new service (e.g., optical path, channel) within the specified optical network.
     """
     # 获取原始网络数据
-    db_network = await crud_network.get_network(db, network_id)
+    db_network = await crud_network.get_network(db, network_id, current_user.username)
     if db_network is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -71,7 +72,7 @@ async def create_service(
     print(service_in.destination_id)
 
     # Optional: Add validation for service_in.path elements to ensure they exist as nodes/connections
-    db_service = await crud_network.add_service_to_network(db, network_id, service_in)
+    db_service = await crud_network.add_service_to_network(db, network_id, service_in, current_user.username)
     if db_service is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -89,14 +90,14 @@ async def get_service(
         network_id: str,
         service_id: str,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Retrieves the detailed information for a specific service within a network.
     """
-    service = await crud_network.get_service_from_network(db, network_id, service_id)
+    service = await crud_network.get_service_from_network(db, network_id, service_id, current_user.username)
     if service is None:
-        network_exists = await crud_network.get_network(db, network_id)
+        network_exists = await crud_network.get_network(db, network_id, current_user.username)
         if not network_exists:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -121,15 +122,15 @@ async def update_service(
         service_id: str,
         payload: ServiceUpdate,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Updates specific fields of a service within a network.
     Only fields provided in the request body will be updated.
     """
-    updated_service = await crud_network.update_service_in_network(db, network_id, service_id, payload)
+    updated_service = await crud_network.update_service_in_network(db, network_id, service_id, payload, current_user.username)
     if updated_service is None:
-        network_exists = await crud_network.get_network(db, network_id)
+        network_exists = await crud_network.get_network(db, network_id, current_user.username)
         if not network_exists:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -153,14 +154,14 @@ async def delete_service(
         network_id: str,
         service_id: str,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Deletes a specific service from a network.
     """
-    success = await crud_network.delete_service_from_network(db, network_id, service_id)
+    success = await crud_network.delete_service_from_network(db, network_id, service_id, current_user.username)
     if not success:
-        network_exists = await crud_network.get_network(db, network_id)
+        network_exists = await crud_network.get_network(db, network_id, current_user.username)
         if not network_exists:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -182,12 +183,12 @@ async def single_link(
         network_id: str,
         service_id: str,
         db: AsyncIOMotorDatabase = Depends(get_database),
-        current_user: str = Depends(get_current_active_user)
+        current_user: TokenData = Depends(get_current_active_user)
 ):
     """
     Single link Simulation
     """
-    db_network = await crud_network.get_network(db, network_id)
+    db_network = await crud_network.get_network(db, network_id, current_user.username)
     if db_network is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -195,7 +196,7 @@ async def single_link(
                     "message": f"Network with id {network_id} not found."}
         )
 
-    service = await crud_network.get_service_from_network(db, network_id, service_id)
+    service = await crud_network.get_service_from_network(db, network_id, service_id, current_user.username)
     if service is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

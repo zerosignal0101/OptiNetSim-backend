@@ -1,7 +1,7 @@
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
-from app.models.user import UserCreate, UserLogin, Token, UserResponse
+from app.models.user import UserCreate, UserLogin, Token, TokenData, UserResponse
 from app.crud.crud_user import crud_user
 from app.core.auth import create_access_token, get_current_user, verify_token
 from app.core.config import get_settings
@@ -64,7 +64,7 @@ async def login(user_credentials: UserLogin):
 
 
 @router.delete("/delete", status_code=status.HTTP_200_OK)
-async def delete_user(current_user: str = Depends(get_current_user)):
+async def delete_user(current_user: TokenData = Depends(get_current_user)):
     """
     Delete currently authenticated user's account.
 
@@ -86,7 +86,7 @@ async def delete_user(current_user: str = Depends(get_current_user)):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: str = Depends(get_current_user)):
+async def get_current_user_info(current_user: TokenData = Depends(get_current_user)):
     """
     Get current authenticated user information.
 
