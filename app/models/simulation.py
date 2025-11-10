@@ -17,4 +17,5 @@ class SimulationTransceiverResult(BaseModel):
     osnr_ase_01nm: float
 
 class SingleLinkSimulationResponse(BaseModel):
-    path_results: List[SimulationTransceiverResult]
+    path: List[str]
+    snr_results: List[SimulationTransceiverResult]

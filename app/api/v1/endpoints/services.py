@@ -198,12 +198,12 @@ async def single_link(
 
     path, propagations_for_path, powers_dbm, infos = single_link_simulate(db_network, service)
 
-    response = SingleLinkSimulationResponse(path_results=[])
+    response = SingleLinkSimulationResponse(snr_results=[])
     from gnpy.core.utils import per_label_average
     from gnpy.core.elements import Transceiver, Fiber, RamanFiber, Roadm, Edfa
     for element in path:
         if type(element) is Transceiver:
-            response.path_results.append(SimulationTransceiverResult(
+            response.snr_results.append(SimulationTransceiverResult(
                 element_id=element.uid,
                 snr_01nm=list(per_label_average(element.snr_01nm, element.propagated_labels).values())[0],
                 snr=list(per_label_average(element.snr, element.propagated_labels).values())[0],

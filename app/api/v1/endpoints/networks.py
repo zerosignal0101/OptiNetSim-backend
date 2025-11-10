@@ -1,4 +1,6 @@
 from typing import List, Optional
+
+import networkx as nx
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import gnpy
@@ -11,9 +13,10 @@ from ....crud import crud_network
 from ....models.defrag import DefragRequest, DefragResponse, DefragService
 from ....models.network import (
     NetworkCreate, NetworkResponse, NetworkListResponse,
-    NetworkDetailResponse, NetworkUpdate
+    NetworkDetailResponse, NetworkUpdate, ServiceInDB
 )
-from ....services.simulation import simulate_service_path_wavelength
+from ....models.simulation import SingleLinkSimulationResponse, SimulationTransceiverResult, SingleLinkSimulationRequest
+from ....services.simulation import simulate_service_path_wavelength, single_link_simulate
 from ....utils.minimize import minimize_network
 from ....services.defrag import network_defrag
 
@@ -258,5 +261,64 @@ async def defrag_network(
             timeline_event['details'] = service_data_dict
 
     response = DefragResponse(result=result, defrag_timeline_events=defrag_timeline_events)
+
+    return response
+
+
+@router.post(
+    "/{network_id}/single-link",
+    status_code=status.HTTP_200_OK,
+    summary="Single Link Simulation"
+)
+async def single_link(
+        network_id: str,
+        payload: SingleLinkSimulationRequest,
+        db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Single link Simulation
+    """
+    db_network = await crud_network.get_network(db, network_id)
+    if db_network is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NETWORK_NOT_FOUND",
+                    "message": f"Network with id {network_id} not found."}
+        )
+
+    network_raw, minimized_elements, _minimized_connections, _network_dict = minimize_network(db_network)
+
+    minimized_element_dict = {}
+    for element in minimized_elements:
+        element_id = element['element_id']
+        minimized_element_dict[element_id] = element
+
+    source_id = minimized_element_dict[payload.source_id]['metadata']['transceiver']['element_id']
+    destination_id = minimized_element_dict[payload.destination_id]['metadata']['transceiver']['element_id']
+
+    shortest_path = nx.shortest_path(network_raw, payload.source_id, payload.destination_id)
+
+    service = ServiceInDB(
+        name='Simulation',
+        service_id='test',
+        source_id=source_id,
+        destination_id=destination_id,
+        path=shortest_path
+    )
+
+    path, propagations_for_path, powers_dbm, infos = single_link_simulate(db_network, service)
+
+    response = SingleLinkSimulationResponse(path=shortest_path, snr_results=[])
+    from gnpy.core.utils import per_label_average
+    from gnpy.core.elements import Transceiver, Fiber, RamanFiber, Roadm, Edfa
+    for element in path:
+        if type(element) is Transceiver:
+            response.snr_results.append(SimulationTransceiverResult(
+                element_id=element.uid,
+                snr_01nm=list(per_label_average(element.snr_01nm, element.propagated_labels).values())[0],
+                snr=list(per_label_average(element.snr, element.propagated_labels).values())[0],
+                osnr_ase_01nm=list(per_label_average(element.osnr_ase_01nm, element.propagated_labels).values())[0],
+                osnr_ase=list(per_label_average(element.osnr_ase, element.propagated_labels).values())[0],
+            ))
 
     return response
