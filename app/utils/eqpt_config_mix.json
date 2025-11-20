@@ -73,6 +73,59 @@
       "pmd": 0,
       "pdl": 0,
       "allowed_for_design": false
+    },
+    {
+      "type_variety": "std_high_gain",
+      "type_def": "variable_gain",
+      "gain_flatmax": 35,
+      "gain_min": 25,
+      "p_max": 21,
+      "nf_min": 5.5,
+      "nf_max": 7,
+      "out_voa_auto": false,
+      "allowed_for_design": true
+    },
+    {
+      "type_variety": "std_medium_gain",
+      "type_def": "variable_gain",
+      "gain_flatmax": 26,
+      "gain_min": 15,
+      "p_max": 23,
+      "nf_min": 6,
+      "nf_max": 10,
+      "out_voa_auto": false,
+      "allowed_for_design": true
+    },
+    {
+      "type_variety": "std_low_gain",
+      "type_def": "variable_gain",
+      "gain_flatmax": 16,
+      "gain_min": 8,
+      "p_max": 23,
+      "nf_min": 6.5,
+      "nf_max": 11,
+      "out_voa_auto": false,
+      "allowed_for_design": true
+    },
+    {
+      "type_variety": "high_power",
+      "type_def": "variable_gain",
+      "gain_flatmax": 16,
+      "gain_min": 8,
+      "p_max": 25,
+      "nf_min": 9,
+      "nf_max": 15,
+      "out_voa_auto": false,
+      "allowed_for_design": false
+    },
+    {
+      "type_variety": "std_fixed_gain",
+      "type_def": "fixed_gain",
+      "gain_flatmax": 21,
+      "gain_min": 20,
+      "p_max": 21,
+      "nf0": 5.5,
+      "allowed_for_design": false
     }
   ],
   "Fiber": [

@@ -17,7 +17,7 @@ from app.models.network import NetworkInDB, ServiceInDB
 
 
 def single_link_simulate(db_network: NetworkInDB, service: ServiceInDB):
-    equipment = load_equipment(Path(__file__).parent.parent / 'utils' / 'eqpt_config_openroadm_ver5.json')
+    equipment = load_equipment(Path(__file__).parent.parent / 'utils' / 'eqpt_config_mix.json')
 
     network_dict = db_network.model_dump()
 
@@ -76,7 +76,7 @@ def simulate_service_path_wavelength(
         source_id: str, destination_id: str,
         path: List[str], wavelength: int, power: float
 ):
-    equipment = load_equipment(Path(__file__).parent.parent / 'utils' / 'eqpt_config_openroadm_ver5.json')
+    equipment = load_equipment(Path(__file__).parent.parent / 'utils' / 'eqpt_config_mix.json')
 
     network_dict = db_network.model_dump()
 
