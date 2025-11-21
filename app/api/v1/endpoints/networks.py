@@ -17,7 +17,7 @@ from ....models.network import (
     NetworkCreate, NetworkResponse, NetworkListResponse,
     NetworkDetailResponse, NetworkUpdate, ServiceInDB
 )
-from ....models.simulation import SingleLinkSimulationResponse, SimulationTransceiverResult, SingleLinkSimulationRequest
+from ....models.simulation import SingleLinkSimulationResponse, SNRResult, SingleLinkSimulationRequest, PowerResult
 from ....services.simulation import simulate_service_path_wavelength, single_link_simulate
 from ....utils.minimize import minimize_network
 from ....services.defrag import network_defrag
@@ -318,17 +318,22 @@ async def single_link(
 
     path, propagations_for_path, powers_dbm, infos = single_link_simulate(db_network, service)
 
-    response = SingleLinkSimulationResponse(path=shortest_path, snr_results=[])
+    response = SingleLinkSimulationResponse(path=shortest_path, snr_results=[], power_results=[])
     from gnpy.core.utils import per_label_average
     from gnpy.core.elements import Transceiver, Fiber, RamanFiber, Roadm, Edfa
     for element in path:
         if type(element) is Transceiver:
-            response.snr_results.append(SimulationTransceiverResult(
+            response.snr_results.append(SNRResult(
                 element_id=element.uid,
                 snr_01nm=list(per_label_average(element.snr_01nm, element.propagated_labels).values())[0],
                 snr=list(per_label_average(element.snr, element.propagated_labels).values())[0],
                 osnr_ase_01nm=list(per_label_average(element.osnr_ase_01nm, element.propagated_labels).values())[0],
                 osnr_ase=list(per_label_average(element.osnr_ase, element.propagated_labels).values())[0],
+            ))
+        elif type(element) is Fiber or type(element) is Edfa or type(element) is RamanFiber or type(element) is Roadm:
+            response.power_results.append(PowerResult(
+                element_id=element.uid,
+                pch_out_dbm=list(per_label_average(element.pch_out_dbm, element.propagated_labels).values())[0],
             ))
 
     return response

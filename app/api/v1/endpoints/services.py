@@ -10,7 +10,7 @@ from ....crud import crud_network
 from ....models.network import ServiceCreate, ServiceInDB, ServiceUpdate
 from ....models.user import TokenData
 from ....utils.minimize import minimize_network
-from ....models.simulation import SingleLinkSimulationResponse, SimulationTransceiverResult
+from ....models.simulation import SingleLinkSimulationResponse, SNRResult
 from ....services.simulation import single_link_simulate
 
 router = APIRouter()
@@ -211,7 +211,7 @@ async def single_link(
     from gnpy.core.elements import Transceiver, Fiber, RamanFiber, Roadm, Edfa
     for element in path:
         if type(element) is Transceiver:
-            response.snr_results.append(SimulationTransceiverResult(
+            response.snr_results.append(SNRResult(
                 element_id=element.uid,
                 snr_01nm=list(per_label_average(element.snr_01nm, element.propagated_labels).values())[0],
                 snr=list(per_label_average(element.snr, element.propagated_labels).values())[0],
