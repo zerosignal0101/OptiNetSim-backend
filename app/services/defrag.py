@@ -11,14 +11,36 @@ from band_defrag.network_loader.multiband_optical_network_env import MultibandOp
 from band_defrag.mat_algorithm.model.mat_policy import TransformerPolicy
 from band_defrag.utils.config_utils import load_config_from_yaml
 from band_defrag.utils.network_utils import read_graphml_as_topology, new_service_dict
-from band_defrag.utils.blocking_utils import blocking_test
+from band_defrag.utils.blocking_utils import blocking_test, allocate_ksp_only
 from band_defrag.utils.network_utils import process_topology
 
 max_agent = 30
 
 
-def network_defrag(network_minimized: nx.DiGraph, avg_arrival_interval: float, avg_holding_time: float, service_arrival_time_max: float):
+def network_ksp_only(
+        network_minimized: nx.DiGraph,
+        avg_arrival_interval: float,
+        avg_holding_time: float,
+        service_arrival_time_max: float
+):
+    topology, __ = process_topology(network_minimized)
 
+    services = new_service_dict(topology, avg_arrival_interval, avg_holding_time, service_arrival_time_max)
+    service_dict_list = []
+    for service in services.values():
+        service_dict_list.append(service.to_dict())
+
+    result, defrag_timeline_events = allocate_ksp_only(topology, services)
+
+    return result, service_dict_list, defrag_timeline_events
+
+
+def network_defrag(
+        network_minimized: nx.DiGraph,
+        avg_arrival_interval: float,
+        avg_holding_time: float,
+        service_arrival_time_max: float
+):
     topology, __ = process_topology(network_minimized)
 
     config_path = os.fspath(pathlib.Path(__file__).parent.parent / 'utils' / 'defrag_config.yaml')

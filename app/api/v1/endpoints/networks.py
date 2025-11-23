@@ -20,7 +20,7 @@ from ....models.network import (
 from ....models.simulation import SingleLinkSimulationResponse, SNRResult, SingleLinkSimulationRequest, PowerResult
 from ....services.simulation import simulate_service_path_wavelength, single_link_simulate
 from ....utils.minimize import minimize_network
-from ....services.defrag import network_defrag
+from ....services.defrag import network_defrag, network_ksp_only
 
 router = APIRouter()
 
@@ -225,11 +225,90 @@ async def defrag_network(
                                                     payload.service_arrival_time_max)
 
     for timeline_event in tqdm(
-                defrag_timeline_events,
-                total=len(defrag_timeline_events),
-                desc='Event simulation with gnpy',
-                leave=True
-        ):
+            defrag_timeline_events,
+            total=len(defrag_timeline_events),
+            desc='Event simulation with gnpy',
+            leave=True
+    ):
+        if timeline_event['event_type'] == EVENT_ALLOCATION or timeline_event['event_type'] == EVENT_REALLOCATION:
+            service_data_dict = timeline_event['details']
+
+            simulation_source_id = None
+            for element in minimized_elements:
+                if element['element_id'] == service_data_dict['source_id']:
+                    simulation_source_id = element['metadata']['transceiver']['element_id']
+                    break
+
+            simulation_destination_id = None
+            for element in minimized_elements:
+                if element['element_id'] == service_data_dict['destination_id']:
+                    simulation_destination_id = element['metadata']['transceiver']['element_id']
+                    break
+
+            if simulation_source_id and simulation_destination_id:
+                path, propagations_for_path, powers_dbm, infos = simulate_service_path_wavelength(
+                    db_network,
+                    simulation_source_id,
+                    simulation_destination_id,
+                    service_data_dict['path'],
+                    service_data_dict['wavelength'],
+                    service_data_dict['power']
+                )
+
+                from gnpy.core.elements import Transceiver, Fiber, RamanFiber, Roadm, Edfa
+                from gnpy.core.utils import per_label_average
+                last_transceiver = path[-1]
+                if isinstance(last_transceiver, Transceiver):
+                    service_data_dict['gsnr'] = list(per_label_average(
+                        last_transceiver.snr,
+                        last_transceiver.propagated_labels
+                    ).values())[0]
+            else:
+                print('[WARN] Can not simulate with None element id.')
+
+            # 3. 将创建好的 Pydantic 模型添加到响应列表中
+            timeline_event['details'] = service_data_dict
+
+    response = DefragResponse(result=result, defrag_timeline_events=defrag_timeline_events)
+
+    return response
+
+
+@router.post(
+    "/{network_id}/ksp_only",
+    status_code=status.HTTP_200_OK,
+    response_model=DefragResponse,
+    summary="Allocate service on an Optical Network"
+)
+async def ksp_only(
+        network_id: str,
+        payload: DefragRequest,
+        db: AsyncIOMotorDatabase = Depends(get_database),
+        current_user: TokenData = Depends(get_current_active_user)
+):
+    """
+    Deletes a network and all its associated topology, services, and configurations.
+    """
+    # 获取原始网络数据
+    db_network = await crud_network.get_network(db, network_id, current_user.username)
+    if db_network is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NETWORK_NOT_FOUND", "message": f"Network with id {network_id} not found"}
+        )
+
+    network_raw, minimized_elements, _minimized_connections, _network_dict = minimize_network(db_network)
+
+    result, service_dict_list, defrag_timeline_events = network_ksp_only(network_raw, payload.avg_arrival_interval,
+                                                                       payload.avg_holding_time,
+                                                                       payload.service_arrival_time_max)
+
+    for timeline_event in tqdm(
+            defrag_timeline_events,
+            total=len(defrag_timeline_events),
+            desc='Event simulation with gnpy',
+            leave=True
+    ):
         if timeline_event['event_type'] == EVENT_ALLOCATION or timeline_event['event_type'] == EVENT_REALLOCATION:
             service_data_dict = timeline_event['details']
 
