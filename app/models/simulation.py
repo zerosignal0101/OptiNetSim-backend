@@ -24,3 +24,4 @@ class SingleLinkSimulationResponse(BaseModel):
     path: List[str]
     snr_results: List[SNRResult]
     power_results: List[PowerResult]
+    full_result: dict

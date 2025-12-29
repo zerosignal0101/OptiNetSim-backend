@@ -397,7 +397,7 @@ async def single_link(
 
     path, propagations_for_path, powers_dbm, infos = single_link_simulate(db_network, service)
 
-    response = SingleLinkSimulationResponse(path=shortest_path, snr_results=[], power_results=[])
+    response = SingleLinkSimulationResponse(path=shortest_path, snr_results=[], power_results=[], full_result={})
     from gnpy.core.utils import per_label_average
     from gnpy.core.elements import Transceiver, Fiber, RamanFiber, Roadm, Edfa
     for element in path:
@@ -414,5 +414,67 @@ async def single_link(
                 element_id=element.uid,
                 pch_out_dbm=list(per_label_average(element.pch_out_dbm, element.propagated_labels).values())[0],
             ))
+
+    element_id_name = {}
+    for element in db_network.elements:
+        element_id = element.element_id
+        element_id_name[element_id] = element.name
+
+    path_elements = []
+    for element in path:
+        element_id = element.uid
+        element_name = element_id_name[element_id]
+        replaced_str = str(element).replace(element.uid, element_name or element.uid)
+
+        # 解析字符串为字典
+        element_dict = {}
+        lines = replaced_str.split('\n')
+
+        if lines:
+            # 处理第一行元素描述
+            element_dict["element"] = lines[0].strip()
+
+            # 处理后续属性行
+            for line in lines[1:]:
+                line = line.strip()
+                if not line:
+                    continue
+
+                # 分割键值对
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    key = key.strip()
+                    value = value.strip()
+
+                    # 尝试转换为数值类型
+                    try:
+                        value = float(value) if '.' in value else int(value)
+                    except ValueError:
+                        pass  # 保持字符串类型
+
+                    element_dict[key] = value
+
+        path_elements.append(element_dict)
+
+    channel_data = []
+    from gnpy.core.utils import lin2db, db2lin
+    for final_carrier, ch_osnr, ch_snr_nl, ch_snr in zip(
+            infos.carriers, path[-1].osnr_ase, path[-1].osnr_nli, path[-1].snr):
+        ch_freq = final_carrier.frequency * 1e-12
+        ch_power = lin2db(final_carrier.power.signal * 1e3)
+        channel_info = {  # 创建一个字典来存储单个通道的信息
+            'channel_number': final_carrier.channel_number,
+            'channel_frequency': round(ch_freq, 5),
+            'channel_power': round(ch_power, 2),
+            'OSNR_ASE': round(ch_osnr, 2),
+            'SNR_NLI': round(ch_snr_nl, 2),
+            'GSNR': round(ch_snr, 2)
+        }
+        channel_data.append(channel_info)  # 将通道信息添加到列表中
+
+    response.full_result = {
+        'path': path_elements,
+        'channels': channel_data,
+    }
 
     return response
