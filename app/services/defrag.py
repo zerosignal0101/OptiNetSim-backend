@@ -21,16 +21,21 @@ def network_ksp_only(
         network_minimized: nx.DiGraph,
         avg_arrival_interval: float,
         avg_holding_time: float,
-        service_arrival_time_max: float
+        service_arrival_time_max: float,
+        service_max_bitrate: int,
+        num_channels: int
 ):
-    topology, __ = process_topology(network_minimized)
+    topology, __ = process_topology(network_minimized, num_channels=num_channels)
 
-    services = new_service_dict(topology, avg_arrival_interval, avg_holding_time, service_arrival_time_max)
+    services = new_service_dict(
+        topology, avg_arrival_interval, avg_holding_time, service_arrival_time_max,
+        service_max_bitrate + 1
+    )
     service_dict_list = []
     for service in services.values():
         service_dict_list.append(service.to_dict())
 
-    result, defrag_timeline_events = allocate_ksp_only(topology, services)
+    result, defrag_timeline_events = allocate_ksp_only(topology, services, num_channels=num_channels)
 
     return result, service_dict_list, defrag_timeline_events
 

@@ -11,6 +11,7 @@ from band_defrag.utils.blocking_utils import EVENT_ALLOCATION, EVENT_REALLOCATIO
 from ....core.database import get_database
 from ....core.auth import get_current_active_user
 from ....crud import crud_network
+from ....models.allocation import KSPAllocationRequest
 from ....models.defrag import DefragRequest, DefragResponse, DefragService
 from ....models.user import TokenData
 from ....models.network import (
@@ -282,7 +283,7 @@ async def defrag_network(
 )
 async def ksp_only(
         network_id: str,
-        payload: DefragRequest,
+        payload: KSPAllocationRequest,
         db: AsyncIOMotorDatabase = Depends(get_database),
         current_user: TokenData = Depends(get_current_active_user)
 ):
@@ -300,8 +301,10 @@ async def ksp_only(
     network_raw, minimized_elements, _minimized_connections, _network_dict = minimize_network(db_network)
 
     result, service_dict_list, defrag_timeline_events = network_ksp_only(network_raw, payload.avg_arrival_interval,
-                                                                       payload.avg_holding_time,
-                                                                       payload.service_arrival_time_max)
+                                                                         payload.avg_holding_time,
+                                                                         payload.service_arrival_time_max,
+                                                                         payload.service_max_bitrate,
+                                                                         payload.num_channels)
 
     for timeline_event in tqdm(
             defrag_timeline_events,
